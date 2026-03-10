@@ -1,4 +1,3 @@
-from fastapi import FastAPI
 from fastapi import FastAPI, status, HTTPException, Depends
 from typing import Optional
 from pydantic import BaseModel, Field
@@ -7,7 +6,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import secrets
 
 app = FastAPI(
-    title='Mi primer API',
+    title='API de Sistema de REservas hospedaje',
     description="Mendoza Rojas Daniel",
     version='1.0.0'
 )
@@ -47,7 +46,7 @@ def verificar_peticion(credenciales: HTTPBasicCredentials = Depends(seguridad)):
 
 @app.get("/", tags=['Inicio'])
 async def holaMundo():
-    return {"mensaje": "Hola mundo FASTAPI"}
+    return {"mensaje": "Hola Bienvenido a Reservas Hospedaje"}
 
 
 @app.get("/v1/bienvenido", tags=['Inicio'])
@@ -69,7 +68,7 @@ async def crear_reserva(reserva: Reserva):
     usuarios_hospedaje.append(reserva.dict())
 
     return {
-        "mensaje": "Reserva agregada correctamente",
+        "mensaje": "la reserva se agrego correctamente",
         "reserva": reserva
     }
 
@@ -91,18 +90,18 @@ async def consultar_reserva(id: int):
     for usuario in usuarios_hospedaje:
         if usuario["id"] == id:
             return {
-                "Resultado": "Reserva encontrada",
+                "Resultado": "se encontro la reserva",
                 "Estatus": "200",
                 "reserva": usuario
             }
 
     raise HTTPException(
         status_code=404,
-        detail="Reserva no encontrada"
+        detail="La reserva no fue encontrada"
     )
 
 
-# Confirmar reserva (check-in)
+# Confirmar reserva (check-i
 @app.put("/v4/reservas/{id}", tags=['Confirmar reserva'])
 async def confirmar_reserva(id: int):
 
@@ -117,7 +116,7 @@ async def confirmar_reserva(id: int):
 
     raise HTTPException(
         status_code=404,
-        detail="Reserva no encontrada"
+        detail="La reserva no se encontro"
     )
 
 
@@ -136,4 +135,4 @@ async def cancelar_reserva(id: int, userAuth: str = Depends(verificar_peticion))
     raise HTTPException(
         status_code=404,
         detail="Reserva no encontrada"
-    )                                                                                
+    )                    
