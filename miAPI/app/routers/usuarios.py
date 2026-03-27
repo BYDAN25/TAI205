@@ -1,70 +1,87 @@
-from fastapi import status,HTTPException,Depends, APIRouter
-from app.data.database import usuarios
+from fastapi import status, HTTPException, Depends, APIRouter
+from sqlalchemy.orm import Session
 from app.models.usuarios import crear_usuario
+from app.data.db import get_db
+from app.data.usuario import usuario as usuarioDB
 from app.security.auth import verificar_peticion
 
-routerU= APIRouter(
+routerU = APIRouter(
     prefix="/v1/usuario",
     tags=['CRUD HTTP']
 )
 
+# 🔹 GET - SIN seguridad
 @routerU.get("/")
-async def consulta():
-    return{
-        "status":"200",
-        "total":len(usuarios),
+async def consulta(db: Session = Depends(get_db)):
+    usuarios = db.query(usuarioDB).all()
+
+    return {
+        "status": "200",
+        "total": len(usuarios),
         "data": usuarios
     }
 
-@routerU.post ("/", status_code=status.HTTP_201_CREATED)
-async def crea_usuario(usuario: crear_usuario): #---- usamos el modelo
-    for usr in usuarios:
-        if usr["id"] == usuario.id: #----cambiamos por que ya no usamos dict
-            raise HTTPException(
-                status_code=400, 
-                detail= "El id ya existe"
-            )
-    usuarios.append(usuario)
-    return{
-        "mensaje":"Usuario agregado correctamente",
-        "usuario":usuario
+# 🔹 POST - SIN seguridad
+@routerU.post("/", status_code=status.HTTP_201_CREATED)
+async def crea_usuario(usuarioP: crear_usuario, db: Session = Depends(get_db)):
+
+    usuarioNuevo = usuarioDB(
+        nombre=usuarioP.nombre,
+        edad=usuarioP.edad
+    )
+
+    db.add(usuarioNuevo)
+    db.commit()
+    db.refresh(usuarioNuevo)
+
+    return {
+        "mensaje": "Usuario agregado correctamente",
+        "usuario": usuarioNuevo
     }
 
-@routerU.patch("/{id}", tags=['CRUD HTTP'])
-async def actualizar_usuario(id: int, usuario_actualizado: dict):
+# 🔹 PATCH - SIN seguridad
+@routerU.patch("/{id}")
+async def actualizar_usuario(id: int, usuario_actualizado: crear_usuario, db: Session = Depends(get_db)):
 
-    for i, usuario in enumerate(usuarios):
-        if usuario["id"] == str(id):
+    usuario = db.query(usuarioDB).filter(usuarioDB.id == id).first()
 
-            usuarios[i]["nombre"] = usuario_actualizado.get("nombre", usuario["nombre"])
-            usuarios[i]["edad"] = usuario_actualizado.get("edad", usuario["edad"])
+    if not usuario:
+        raise HTTPException(
+            status_code=404,
+            detail="Usuario no encontrado"
+        )
 
-            return {
-                "mensaje": "Usuario actualizado correctamente",
-                "status": "200",
-                "usuario": usuarios[i]
-            }
+    usuario.nombre = usuario_actualizado.nombre
+    usuario.edad = usuario_actualizado.edad
 
-    raise HTTPException(
-        status_code=404,
-        detail="Usuario no encontrado"
-    )
+    db.commit()
+    db.refresh(usuario)
 
-@routerU.delete ("/{id}", tags=['CRUD HTTP'])
-async def eliminar_usuario(id: int, userAuth:str=Depends(verificar_peticion)):
+    return {
+        "mensaje": "Usuario actualizado correctamente",
+        "usuario": usuario
+    }
 
-    for i, usuario in enumerate(usuarios):
-        if usuario["id"] == id:
+# 🔹 DELETE - CON seguridad
+@routerU.delete("/{id}")
+async def eliminar_usuario(
+    id: int,
+    db: Session = Depends(get_db),
+    userAuth: str = Depends(verificar_peticion) 
+):
 
-            usuario_eliminado = usuarios.pop(i)
+    usuario = db.query(usuarioDB).filter(usuarioDB.id == id).first()
 
-            return {
-                "mensaje": f"Usuario eliminado por {userAuth}",
-                "status": "200",
-                "usuario": usuario_eliminado
-            }
+    if not usuario:
+        raise HTTPException(
+            status_code=404,
+            detail="Usuario no encontrado"
+        )
 
-    raise HTTPException(
-        status_code=404,
-        detail="Usuario no encontrado"
-    )
+    db.delete(usuario)
+    db.commit()
+
+    return {
+        "mensaje": f"Usuario eliminado por {userAuth}",
+        "usuario": usuario
+    }
